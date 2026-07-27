@@ -65,6 +65,10 @@ td{text-align:right;padding:9px 0;border-bottom:1px solid rgba(20,24,28,.07)}
 details summary{cursor:pointer;font-size:12px;color:var(--dim);
   font-family:'IBM Plex Mono',monospace;padding:4px 0}
 .hide{display:none}
+.fbtn{font-family:'IBM Plex Mono',monospace;font-size:10.5px;background:none;color:var(--dim);
+  border:1px solid var(--line);padding:3px 7px;margin:0 4px 4px 0;cursor:pointer}
+.fbtn:hover{border-color:var(--teal);color:var(--teal)}
+.fbtn[aria-pressed=true]{background:var(--teal);color:var(--card);border-color:var(--teal)}
 @media (prefers-reduced-motion:reduce){.bar{transition:none}}
 </style>
 </head>
@@ -82,9 +86,10 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
   <div class="panel"><div class="ctrls">
     <div class="ctrl">
-      <label class="top" for="vol"><span class="nm">Market-Making-Volumen</span><span class="vl" id="volV"></span></label>
-      <input id="vol" type="range" min="0" max="200" step="1" value="55">
+      <label class="top" for="vol"><span class="nm">Volumen je Handelstag</span><span class="vl" id="volV"></span></label>
+      <input id="vol" type="range" min="10" max="1400" step="5" value="206">
       <div class="sub" id="volS"></div>
+      <div class="sub" id="fenster" style="margin-top:6px"></div>
     </div>
     <div class="ctrl">
       <label class="top" for="bp"><span class="nm">Referenzmarge</span><span class="vl" id="bpV"></span></label>
@@ -100,8 +105,10 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
     </div>
     <div class="ctrl">
       <label class="top" for="sp"><span class="nm">Strukturierte Produkte</span><span class="vl" id="spV"></span></label>
-      <input id="sp" type="range" min="15" max="95" step="1" value="50">
-      <div class="sub">Handelsergebnis der AG · 2025: 55,3</div>
+      <input id="sp" type="range" min="10" max="95" step="1" value="36">
+      <div class="sub">189 bp × wikifolio + 178 bp × Turbo<br>
+        <label class="chk" style="margin-top:5px"><input id="ausSp" type="checkbox" checked>
+        <span id="spS"></span></label></div>
     </div>
     <div class="ctrl">
       <label class="top" for="pay"><span class="nm">Ausschüttungsquote</span><span class="vl" id="payV"></span></label>
@@ -161,6 +168,7 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
       <tr><td>KG-Kosten</td><td>5,86 Mio € + 32,4 % × TC-Handelsergebnis · R² 0,995</td></tr>
       <tr><td>AG-Verwaltungsaufwand</td><td>8,14 Mio € + 41,6 % × AG-Handelsergebnis · R² 0,960</td></tr>
       <tr><td>Konzernbrücke</td><td>−3,96 Mio € + 16,83 % × Konzern-Handelsergebnis · R² 0,995</td></tr>
+      <tr><td>Strukturierte Produkte</td><td>189 bp × wikifolio-Umsatz + 178 bp × Turbo-Umsatz + 0,21 Mio je Quartal · R² 0,73 · out-of-sample H1/2026 −6 %</td></tr>
       <tr><td>Marge aus Produktmix</td><td>log(bp) = −0,960 + 1,575 × log(Aktien/ETF) · R² 0,37 · OOS-Fehler 41 %</td></tr>
       <tr><td>Volatilität</td><td>getestet und verworfen — r = −0,39, senkt das adjustierte R²</td></tr>
       <tr><td>Steuerquote AG</td><td>39,0 % effektiv</td></tr>
@@ -181,6 +189,8 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
 <script>
 "use strict";
+var HT=255, BR={achse:778,steig:1.0383};   // Sheet-Tagesrate -> gemeldetes Jahresvolumen
+function jahresvol(rate){return (BR.achse+BR.steig*rate*HT)/1000;}   // in Mrd
 var CAL={kgFix:5.86,kgVar:.324,agFix:8.14,agVar:.416,agTax:.39,agOther:.58,
   konzOff:-3.96,konzVar:.1683,konzTax:.687,shares:9.438,vol2025:331.69};
 var MIX={exp:1.575,ref:3.677,unten:2.98,oben:6.34};
@@ -209,7 +219,8 @@ function bruecke(tc,ag){
   return {egt:e,eps:e*CAL.konzTax/CAL.shares};
 }
 var $=function(id){return document.getElementById(id);};
-var els=["vol","bp","mix","sp","pay","kurs","ausMix"].map($);
+var els=["vol","bp","mix","sp","pay","kurs","ausMix","ausSp"].map($);
+var spAusUmsatz=null, stdFehler=null;   // vom Loader gesetzt
 
 function chart(bp,sp,pay,anteil){
   var W=720,H=260,L=46,R=10,T=8,B=34,pts=[],max=0;
@@ -244,17 +255,23 @@ function chart(bp,sp,pay,anteil){
 }
 
 function render(){
-  var vol=+els[0].value, bpRef=+els[1].value, mix=+els[2].value,
-      sp=+els[3].value, pay=+els[4].value/100, kurs=+els[5].value, auto=els[6].checked;
+  var rate=+els[0].value, vol=jahresvol(rate), bpRef=+els[1].value, mix=+els[2].value,
+      pay=+els[4].value/100, kurs=+els[5].value, auto=els[6].checked;
+  var spAuto=els[7].checked && spAusUmsatz!==null;
+  var sp=spAuto?spAusUmsatz:+els[3].value;
   var mf=faktor(mix), bp=auto?bpRef*mf.f:bpRef;
   var r=rechne(vol,bp,sp,pay), anteil=vol/CAL.vol2025;
 
-  $("volV").textContent=num(vol,0)+" Mrd €";
-  $("volS").textContent="LS-Exchange + Tradecenter · "+(anteil*100).toFixed(0)+" % von 2025 (331,7 Mrd €)";
+  $("volV").textContent=num(rate,0)+" Mio €";
+  $("volS").textContent="LS-Exchange + Tradecenter · Jahresrate "+num(vol,1)
+    +" Mrd = "+(anteil*100).toFixed(0)+" % von 2025";
   $("bpV").textContent=num(bpRef,1)+" bp";
   $("mixV").textContent=num(mix,2);
   $("mixS").textContent="Marge daraus ableiten → "+num(bp,2)+" bp";
-  $("spV").textContent=num(sp,0)+" Mio €";
+  $("spV").textContent=num(sp,1)+" Mio €";
+  $("spS").textContent=spAusUmsatz===null?"aus Umsätzen ableiten (keine Daten)"
+    :"aus Umsätzen ableiten → "+num(spAusUmsatz,1)+" Mio €";
+  els[3].disabled=spAuto;
   $("payV").textContent=(pay*100).toFixed(0)+" %";
   $("kursV").textContent=num(kurs,2)+" €";
 
@@ -276,7 +293,11 @@ function render(){
   $("kDiv").textContent=num(r.divA,2)+" €";
   $("kDivN").textContent=(r.divA/kurs*100).toFixed(1)+" % auf "+num(kurs,2)+" €";
   $("kEps").textContent=num(r.eps,2)+" €";
-  $("kEpsN").textContent="vor Sondereffekten · KGV "+(r.eps>0?(kurs/r.eps).toFixed(1):"—");
+  if(stdFehler){
+    var lo=rechne(jahresvol(Math.max(0,rate-stdFehler)),bp,sp,pay).eps,
+        hi=rechne(jahresvol(rate+stdFehler),bp,sp,pay).eps;
+    $("kEpsN").textContent="Volumenband "+num(lo,2)+"–"+num(hi,2)+" € · KGV "+(r.eps>0?(kurs/r.eps).toFixed(1):"—");
+  } else $("kEpsN").textContent="vor Sondereffekten · KGV "+(r.eps>0?(kurs/r.eps).toFixed(1):"—");
   $("kKg").textContent=num(r.kgErg,1);
   $("kKg").style.color=r.kgErg<0?"#A8442C":"";
   $("kKgN").textContent="Handelsergebnis "+num(r.tcHE,1)+" − Kosten "+num(r.tcHE-r.kgErg,1);
@@ -317,13 +338,38 @@ function render(){
 })();
 
 for(var i=0;i<els.length;i++) els[i].addEventListener("input",render);
+
+function fensterKnoepfe(f){
+  if(!f) return;
+  var opt=[["tage5","5 Tage"],["tage10","10 Tage"],["tage20","20 Tage"],
+           ["seit_bruch","seit Bruch"],["ewma","gewichtet"]];
+  var h="";
+  for(var i=0;i<opt.length;i++){
+    var v=f[opt[i][0]];
+    if(typeof v==="number") h+='<button class="fbtn" data-v="'+v+'">'+opt[i][1]+' · '+num(v,0)+'</button>';
+  }
+  if(f.standardfehler_mio) h+='<div style="margin-top:4px">Standardfehler ±'+num(f.standardfehler_mio,0)
+    +' Mio bei '+f.handelstage+' Handelstagen · Tagesstreuung '+num(f.streuung_mio,0)+' Mio</div>';
+  var box=$("fenster"); box.innerHTML=h;
+  var btns=box.getElementsByTagName("button");
+  for(var k=0;k<btns.length;k++) btns[k].addEventListener("click",function(e){
+    els[0].value=Math.round(+e.target.getAttribute("data-v"));
+    for(var j=0;j<btns.length;j++) btns[j].setAttribute("aria-pressed", btns[j]===e.target);
+    render();
+  });
+}
 render();
 
 fetch("forecast.json").then(function(res){return res.ok?res.json():null;}).then(function(d){
   if(!d||!d.stand) return;
   $("stand").textContent=" · Datenstand "+d.stand;
-  if(d.volumen_jahresrate_mio) els[0].value=Math.round(d.volumen_jahresrate_mio/1000);
+  if(d.tagesrate_mio) els[0].value=Math.round(d.tagesrate_mio);
+  fensterKnoepfe(d.fenster);
+  if(d.fenster&&d.fenster.standardfehler_mio) stdFehler=d.fenster.standardfehler_mio;
   if(d.mix_aktien_je_etf) els[2].value=d.mix_aktien_je_etf;
+  if(d.annahmen&&d.annahmen.sp_handelsergebnis_mio){
+    spAusUmsatz=d.annahmen.sp_handelsergebnis_mio; els[3].value=Math.round(spAusUmsatz);
+  }
   if(d.warnungen&&d.warnungen.length){
     var w=$("ladewarn"); w.classList.remove("hide"); w.textContent=d.warnungen.join(" · ");
   }
