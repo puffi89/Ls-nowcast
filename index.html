@@ -82,7 +82,7 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
   <div class="panel"><div class="ctrls">
     <div class="ctrl">
-      <label class="top" for="vol"><span class="nm">TradeCenter-Volumen</span><span class="vl" id="volV"></span></label>
+      <label class="top" for="vol"><span class="nm">Market-Making-Volumen</span><span class="vl" id="volV"></span></label>
       <input id="vol" type="range" min="0" max="200" step="1" value="55">
       <div class="sub" id="volS"></div>
     </div>
@@ -94,7 +94,8 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
     <div class="ctrl">
       <label class="top" for="mix"><span class="nm">Produktmix Aktien/ETF</span><span class="vl" id="mixV"></span></label>
       <input id="mix" type="range" min="1.2" max="7" step="0.05" value="1.55">
-      <div class="sub"><label class="chk"><input id="ausMix" type="checkbox" checked>
+      <div class="sub">Aktienumsatz je Euro ETF-Umsatz<br>
+        <label class="chk" style="margin-top:5px"><input id="ausMix" type="checkbox" checked>
         <span id="mixS"></span></label></div>
     </div>
     <div class="ctrl">
@@ -116,6 +117,10 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
   <div class="rule"></div>
   <h2>Durchleitung</h2>
+  <p class="foot" style="margin:-6px 0 16px">Das Market-Making-Volumen umfasst beide
+    Handelsplätze der Lang &amp; Schwarz TradeCenter AG &amp; Co. KG: die LS-Exchange
+    und den außerbörslichen Tradecenter-Handel. Es entspricht dem Segment, das L&amp;S
+    in den Quartalsmeldungen als TradeCenter ausweist.</p>
   <div id="cascade"></div>
   <p class="foot" style="margin-top:14px">Balkenbreite proportional zum Betrag in Mio €.
     Der rechte Wert ist der Abzug gegenüber der Stufe darüber: Verwaltungsaufwand,
@@ -127,7 +132,7 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
       <div class="v" id="kDiv" style="color:var(--amber)"></div><div class="n" id="kDivN"></div></div>
     <div class="kpi"><div class="k">Ergebnis je Aktie</div>
       <div class="v" id="kEps"></div><div class="n" id="kEpsN"></div></div>
-    <div class="kpi"><div class="k">Ergebnis TradeCenter KG</div>
+    <div class="kpi"><div class="k">Ergebnis der KG</div>
       <div class="v" id="kKg"></div><div class="n" id="kKgN"></div></div>
     <div class="kpi"><div class="k">Jahresüberschuss AG</div>
       <div class="v" id="kAg"></div><div class="n">Basis der Ausschüttung</div></div>
@@ -245,7 +250,7 @@ function render(){
   var r=rechne(vol,bp,sp,pay), anteil=vol/CAL.vol2025;
 
   $("volV").textContent=num(vol,0)+" Mrd €";
-  $("volS").textContent=(anteil*100).toFixed(0)+" % des Jahres 2025 (331,7 Mrd €)";
+  $("volS").textContent="LS-Exchange + Tradecenter · "+(anteil*100).toFixed(0)+" % von 2025 (331,7 Mrd €)";
   $("bpV").textContent=num(bpRef,1)+" bp";
   $("mixV").textContent=num(mix,2);
   $("mixS").textContent="Marge daraus ableiten → "+num(bp,2)+" bp";
