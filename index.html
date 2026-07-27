@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lang &amp; Schwarz — Ertragsmodell</title>
+<meta name="description" content="Prognosemodell für Lang & Schwarz: vom Tagesumsatz zu Ergebnis je Aktie und Dividende." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E8EBE6; --card:#F4F6F2; --ink:#14181C; --dim:#6E7570;
+  --line:rgba(20,24,28,.14); --teal:#0F6E63; --clay:#A8442C; --amber:#B57F00;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);margin:0;padding:28px 20px 56px;
+  font-family:'Archivo',ui-sans-serif,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.inner{max-width:980px;margin:0 auto}
+.mono{font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+h1{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.025em;line-height:1.04;margin:0 0 12px}
+.lede{max-width:60ch;font-size:15px;line-height:1.55;color:#3A4148;margin:0}
+.rule{height:1px;background:var(--line);margin:26px 0}
+.panel{background:var(--card);border:1px solid var(--line);padding:20px}
+.ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:22px}
+.ctrl label.top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:9px}
+.nm{font-size:12.5px;font-weight:600}
+.vl{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--teal)}
+.sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--dim);margin-top:7px}
+.chk{display:flex;gap:7px;align-items:center;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--dim)}
+input[type=range]{width:100%;height:22px;background:transparent;-webkit-appearance:none;appearance:none;margin:0;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:rgba(20,24,28,.28)}
+input[type=range]::-moz-range-track{height:2px;background:rgba(20,24,28,.28)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;margin-top:-6.5px;
+  border-radius:50%;background:var(--teal);cursor:pointer;border:2px solid var(--card)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--teal);
+  cursor:pointer;border:2px solid var(--card)}
+input[type=range]:focus-visible{outline:2px solid var(--teal);outline-offset:4px}
+.band{margin-bottom:5px;position:relative}
+.bar{height:52px;display:flex;align-items:center;padding:0 14px;color:#F4F6F2;min-width:100px;
+  transition:width .35s cubic-bezier(.4,0,.2,1)}
+.bar .amt{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600}
+.blabel{font-size:12px;color:var(--dim);padding:5px 0 0 2px}
+.cut{position:absolute;right:0;top:0;height:52px;display:flex;align-items:center;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--clay)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line)}
+.kpi{background:var(--card);padding:16px 16px 18px}
+.kpi .k{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim)}
+.kpi .v{font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:600;letter-spacing:-.02em;margin-top:7px}
+.kpi .n{font-size:11.5px;color:var(--dim);margin-top:4px}
+h2{font-size:13px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin:0 0 14px}
+table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+th{text-align:right;font-weight:500;color:var(--dim);padding:0 0 9px;font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{text-align:right;padding:9px 0;border-bottom:1px solid rgba(20,24,28,.07)}
+.warn{background:#F6E9E4;border-left:3px solid var(--clay);padding:12px 14px;
+  font-size:13px;line-height:1.5;margin-top:16px}
+.foot{font-size:11.5px;line-height:1.65;color:var(--dim);max-width:74ch}
+.disc{border-top:1px solid var(--line);margin-top:26px;padding-top:16px}
+details summary{cursor:pointer;font-size:12px;color:var(--dim);
+  font-family:'IBM Plex Mono',monospace;padding:4px 0}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+</head>
+<body>
+<div class="inner">
+  <p class="eyebrow">Lang &amp; Schwarz · Ertragsmodell nach dem Orderflow-Bruch<span id="stand"></span></p>
+  <h1>Vom Tagesumsatz<br>zur Dividende.</h1>
+  <p class="lede">Das Modell rechnet ein Handelsvolumen durch beide Gesellschaften des Konzerns:
+    erst die TradeCenter&nbsp;KG als Market Maker, dann die AG als Emittentin und
+    Dividendenzahlerin. Alle Kostenfunktionen sind auf die veröffentlichten Abschlüsse
+    2022–2025 kalibriert.</p>
+
+  <div id="ladewarn" class="warn hide"></div>
+  <div class="rule"></div>
+
+  <div class="panel"><div class="ctrls">
+    <div class="ctrl">
+      <label class="top" for="vol"><span class="nm">TradeCenter-Volumen</span><span class="vl" id="volV"></span></label>
+      <input id="vol" type="range" min="0" max="200" step="1" value="55">
+      <div class="sub" id="volS"></div>
+    </div>
+    <div class="ctrl">
+      <label class="top" for="bp"><span class="nm">Referenzmarge</span><span class="vl" id="bpV"></span></label>
+      <input id="bp" type="range" min="1.5" max="8" step="0.1" value="5.4">
+      <div class="sub">brutto ohne PFOF · 2025 netto 2,7 bp</div>
+    </div>
+    <div class="ctrl">
+      <label class="top" for="mix"><span class="nm">Produktmix Aktien/ETF</span><span class="vl" id="mixV"></span></label>
+      <input id="mix" type="range" min="1.2" max="7" step="0.05" value="1.55">
+      <div class="sub"><label class="chk"><input id="ausMix" type="checkbox" checked>
+        <span id="mixS"></span></label></div>
+    </div>
+    <div class="ctrl">
+      <label class="top" for="sp"><span class="nm">Strukturierte Produkte</span><span class="vl" id="spV"></span></label>
+      <input id="sp" type="range" min="15" max="95" step="1" value="50">
+      <div class="sub">Handelsergebnis der AG · 2025: 55,3</div>
+    </div>
+    <div class="ctrl">
+      <label class="top" for="pay"><span class="nm">Ausschüttungsquote</span><span class="vl" id="payV"></span></label>
+      <input id="pay" type="range" min="0" max="80" step="5" value="40">
+      <div class="sub">Vorstandsleitlinie seit 2025: rund 40 %</div>
+    </div>
+    <div class="ctrl">
+      <label class="top" for="kurs"><span class="nm">Aktienkurs</span><span class="vl" id="kursV"></span></label>
+      <input id="kurs" type="range" min="5" max="45" step="0.5" value="18">
+      <div class="sub">nur für die Renditeangabe</div>
+    </div>
+  </div></div>
+
+  <div class="rule"></div>
+  <h2>Durchleitung</h2>
+  <div id="cascade"></div>
+  <p class="foot" style="margin-top:14px">Balkenbreite proportional zum Betrag in Mio €.
+    Der rechte Wert ist der Abzug gegenüber der Stufe darüber: Verwaltungsaufwand,
+    Steuern, Thesaurierung.</p>
+
+  <div class="rule"></div>
+  <div class="grid3">
+    <div class="kpi"><div class="k">Dividende je Aktie</div>
+      <div class="v" id="kDiv" style="color:var(--amber)"></div><div class="n" id="kDivN"></div></div>
+    <div class="kpi"><div class="k">Ergebnis je Aktie</div>
+      <div class="v" id="kEps"></div><div class="n" id="kEpsN"></div></div>
+    <div class="kpi"><div class="k">Ergebnis TradeCenter KG</div>
+      <div class="v" id="kKg"></div><div class="n" id="kKgN"></div></div>
+    <div class="kpi"><div class="k">Jahresüberschuss AG</div>
+      <div class="v" id="kAg"></div><div class="n">Basis der Ausschüttung</div></div>
+  </div>
+  <div id="mixWarn" class="warn hide"></div>
+  <div id="kgWarn" class="warn hide"></div>
+
+  <div class="rule"></div>
+  <h2>Dividende und Ergebnis über den Volumenanteil</h2>
+  <svg id="chart" viewBox="0 0 720 260" style="width:100%;height:auto" role="img"
+       aria-label="Verlauf von Dividende und Ergebnis je Aktie über den Volumenanteil"></svg>
+  <p class="foot">Schwarz: Ergebnis je Aktie. Gold: Dividende. Die gestrichelte Linie
+    markiert die aktuelle Einstellung.</p>
+
+  <div class="rule"></div>
+  <h2>Backtest gegen die Abschlüsse</h2>
+  <table><thead><tr><th>Jahr</th><th>EGT Modell</th><th>EGT Ist</th>
+    <th>EPS Modell</th><th>EPS Ist</th><th>Abw.</th></tr></thead>
+    <tbody id="bt"></tbody></table>
+  <p class="foot" style="margin-top:12px">Gefüttert mit den tatsächlichen Segmentergebnissen,
+    damit der Test die Kosten- und Steuerbrücke prüft und nicht die Volumenannahme.
+    Beträge in Mio €.</p>
+
+  <details style="margin-top:22px"><summary>Kalibrierung anzeigen</summary>
+    <div class="panel" style="margin-top:12px"><table><tbody>
+      <tr><td>KG-Kosten</td><td>5,86 Mio € + 32,4 % × TC-Handelsergebnis · R² 0,995</td></tr>
+      <tr><td>AG-Verwaltungsaufwand</td><td>8,14 Mio € + 41,6 % × AG-Handelsergebnis · R² 0,960</td></tr>
+      <tr><td>Konzernbrücke</td><td>−3,96 Mio € + 16,83 % × Konzern-Handelsergebnis · R² 0,995</td></tr>
+      <tr><td>Marge aus Produktmix</td><td>log(bp) = −0,960 + 1,575 × log(Aktien/ETF) · R² 0,37 · OOS-Fehler 41 %</td></tr>
+      <tr><td>Volatilität</td><td>getestet und verworfen — r = −0,39, senkt das adjustierte R²</td></tr>
+      <tr><td>Steuerquote AG</td><td>39,0 % effektiv</td></tr>
+      <tr><td>Steuerquote Konzern</td><td>68,7 % Überschuss je EGT</td></tr>
+      <tr><td>Aktien</td><td>9.438.000 Stück</td></tr>
+    </tbody></table></div>
+  </details>
+
+  <div class="disc"><p class="foot">
+    Eigenes Modell auf Basis öffentlich zugänglicher Abschlüsse und Quartalsmeldungen der
+    Lang &amp; Schwarz Aktiengesellschaft. Keine Anlageberatung und keine Anlageempfehlung.
+    Der Betreiber dieser Seite hält Aktien der Gesellschaft. Die Sondereffekte aus dem
+    Cum-Ex-Komplex und die Zuführung zum Fonds für allgemeine Bankrisiken sind nicht
+    modelliert; beide liegen im Ermessen des Vorstands. Zum 31.12.2025 stand einem
+    steuerlichen Gesamtrisiko von 43,2 Mio € eine Rückstellung von 35,3 Mio € gegenüber.
+  </p></div>
+</div>
+
+<script>
+"use strict";
+var CAL={kgFix:5.86,kgVar:.324,agFix:8.14,agVar:.416,agTax:.39,agOther:.58,
+  konzOff:-3.96,konzVar:.1683,konzTax:.687,shares:9.438,vol2025:331.69};
+var MIX={exp:1.575,ref:3.677,unten:2.98,oben:6.34};
+var IST=[{j:2022,tc:19.5,ag:24.718,egt:17.2,eps:1.27},{j:2023,tc:19.3,ag:23.059,egt:15.3,eps:1.08},
+  {j:2024,tc:78.4,ag:30.934,egt:71.3,eps:5.19},{j:2025,tc:90.5,ag:55.268,egt:100.4,eps:7.32}];
+
+function num(n,d){return n.toLocaleString("de-DE",{minimumFractionDigits:d,maximumFractionDigits:d});}
+function faktor(mix){
+  var roh=Math.max(MIX.unten,Math.min(MIX.oben,mix));
+  return {f:Math.pow(roh/MIX.ref,MIX.exp),klemm:mix<MIX.unten||mix>MIX.oben};
+}
+function rechne(volMrd,bp,sp,pay){
+  var tcHE=volMrd*bp/10;
+  var kgErg=tcHE-(CAL.kgFix+CAL.kgVar*tcHE);
+  var agOp=sp-(CAL.agFix+CAL.agVar*sp);
+  var agJU=(agOp+kgErg)*(1-CAL.agTax)-CAL.agOther;
+  var konzHE=tcHE+sp;
+  var egt=agOp+kgErg+CAL.konzOff+CAL.konzVar*konzHE;
+  var ueb=egt*CAL.konzTax;
+  return {tcHE:tcHE,kgErg:kgErg,agJU:agJU,konzHE:konzHE,egt:egt,ueb:ueb,
+    eps:ueb/CAL.shares, divS:Math.max(0,agJU)*pay, divA:Math.max(0,agJU)*pay/CAL.shares};
+}
+function bruecke(tc,ag){
+  var kg=tc-(CAL.kgFix+CAL.kgVar*tc), op=ag-(CAL.agFix+CAL.agVar*ag);
+  var e=op+kg+CAL.konzOff+CAL.konzVar*(tc+ag);
+  return {egt:e,eps:e*CAL.konzTax/CAL.shares};
+}
+var $=function(id){return document.getElementById(id);};
+var els=["vol","bp","mix","sp","pay","kurs","ausMix"].map($);
+
+function chart(bp,sp,pay,anteil){
+  var W=720,H=260,L=46,R=10,T=8,B=34,pts=[],max=0;
+  for(var a=0;a<=60;a+=2){
+    var x=rechne(CAL.vol2025*a/100,bp,sp,pay);
+    pts.push({a:a,d:x.divA,e:x.eps});
+    max=Math.max(max,x.eps,x.divA);
+  }
+  max=Math.max(max,1)*1.1;
+  var px=function(a){return L+(a/60)*(W-L-R);};
+  var py=function(v){return H-B-(v/max)*(H-T-B);};
+  var s='',i;
+  for(i=0;i<=4;i++){
+    var v=max*i/4, y=py(v);
+    s+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="rgba(20,24,28,.10)"/>';
+    s+='<text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#6E7570" font-family="IBM Plex Mono">'+num(v,1)+' €</text>';
+  }
+  for(i=0;i<=6;i++){
+    var a2=i*10;
+    s+='<text x="'+px(a2)+'" y="'+(H-14)+'" text-anchor="middle" font-size="11" fill="#6E7570" font-family="IBM Plex Mono">'+a2+'</text>';
+  }
+  s+='<text x="'+((L+W-R)/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="11" fill="#6E7570">% des Volumens von 2025</text>';
+  var path=function(key,col,w){
+    var d='';
+    for(var k=0;k<pts.length;k++) d+=(k?'L':'M')+px(pts[k].a)+' '+py(pts[k][key]);
+    return '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="'+w+'"/>';
+  };
+  var ax=Math.min(60,Math.max(0,anteil*100));
+  s+='<line x1="'+px(ax)+'" y1="'+T+'" x2="'+px(ax)+'" y2="'+(H-B)+'" stroke="#A8442C" stroke-dasharray="3 3"/>';
+  s+=path('e','#14181C',2)+path('d','#B57F00',2.5);
+  $("chart").innerHTML=s;
+}
+
+function render(){
+  var vol=+els[0].value, bpRef=+els[1].value, mix=+els[2].value,
+      sp=+els[3].value, pay=+els[4].value/100, kurs=+els[5].value, auto=els[6].checked;
+  var mf=faktor(mix), bp=auto?bpRef*mf.f:bpRef;
+  var r=rechne(vol,bp,sp,pay), anteil=vol/CAL.vol2025;
+
+  $("volV").textContent=num(vol,0)+" Mrd €";
+  $("volS").textContent=(anteil*100).toFixed(0)+" % des Jahres 2025 (331,7 Mrd €)";
+  $("bpV").textContent=num(bpRef,1)+" bp";
+  $("mixV").textContent=num(mix,2);
+  $("mixS").textContent="Marge daraus ableiten → "+num(bp,2)+" bp";
+  $("spV").textContent=num(sp,0)+" Mio €";
+  $("payV").textContent=(pay*100).toFixed(0)+" %";
+  $("kursV").textContent=num(kurs,2)+" €";
+
+  var bands=[["Ergebnis aus der Handelstätigkeit",r.konzHE,"#14181C"],
+             ["Ergebnis der gewöhnlichen Geschäftstätigkeit",r.egt,"#14181C"],
+             ["Konzernüberschuss vor Sondereffekten",r.ueb,"#0F6E63"],
+             ["Ausschüttungssumme an Aktionäre",r.divS,"#B57F00"]];
+  var maxB=Math.max(r.konzHE,1),out="";
+  for(var i=0;i<bands.length;i++){
+    var w=Math.max(6,Math.max(bands[i][1],0)/maxB*100);
+    var cut=i>0?bands[i-1][1]-bands[i][1]:0;
+    out+='<div class="band"><div class="bar" style="width:'+w+'%;background:'+bands[i][2]+'">'
+       +'<span class="amt">'+num(bands[i][1],1)+'</span></div>'
+       +(cut>0?'<div class="cut">− '+num(cut,1)+'</div>':'')
+       +'<div class="blabel">'+bands[i][0]+'</div></div>';
+  }
+  $("cascade").innerHTML=out;
+
+  $("kDiv").textContent=num(r.divA,2)+" €";
+  $("kDivN").textContent=(r.divA/kurs*100).toFixed(1)+" % auf "+num(kurs,2)+" €";
+  $("kEps").textContent=num(r.eps,2)+" €";
+  $("kEpsN").textContent="vor Sondereffekten · KGV "+(r.eps>0?(kurs/r.eps).toFixed(1):"—");
+  $("kKg").textContent=num(r.kgErg,1);
+  $("kKg").style.color=r.kgErg<0?"#A8442C":"";
+  $("kKgN").textContent="Handelsergebnis "+num(r.tcHE,1)+" − Kosten "+num(r.tcHE-r.kgErg,1);
+  $("kAg").textContent=num(r.agJU,1);
+
+  var mw=$("mixWarn");
+  if(auto&&mf.klemm){
+    mw.classList.remove("hide");
+    mw.textContent="Der Produktmix von "+num(mix,2)+" liegt außerhalb des Stützbereichs "
+      +"2,98–6,34, auf dem das Margenmodell geschätzt wurde. Der Faktor ist auf den Rand "
+      +"geklemmt, sonst würde die Potenzfunktion extrapolieren. Seit dem Orderflow-Bruch ist "
+      +"der Mix eingebrochen, weil das aktienlastige LSX-Geschäft weggefallen ist — das Modell "
+      +"kennt diese Konstellation nicht. Behandle die abgeleitete Marge als Hinweis, nicht als Schätzung.";
+  } else mw.classList.add("hide");
+
+  var kw=$("kgWarn");
+  if(r.kgErg<0){
+    var beHE=CAL.kgFix/(1-CAL.kgVar);
+    kw.classList.remove("hide");
+    kw.textContent="Die KG arbeitet in diesem Szenario mit Verlust. Ihre Ausschüttung an die AG "
+      +"entfällt, und die Dividende trägt allein das Zertifikategeschäft. Der Umschlagpunkt liegt "
+      +"bei "+num(beHE,1)+" Mio € Handelsergebnis, also rund "+num(beHE*10/bp,0)+" Mrd € Volumen bei "
+      +num(bp,1)+" bp.";
+  } else kw.classList.add("hide");
+
+  chart(bp,sp,pay,anteil);
+}
+
+(function(){
+  var t="";
+  for(var i=0;i<IST.length;i++){
+    var m=bruecke(IST[i].tc,IST[i].ag), ab=(m.eps-IST[i].eps)/IST[i].eps*100;
+    t+="<tr><td>"+IST[i].j+"</td><td>"+num(m.egt,1)+"</td><td>"+num(IST[i].egt,1)+"</td><td>"
+      +num(m.eps,2)+"</td><td>"+num(IST[i].eps,2)+"</td><td style='color:"
+      +(Math.abs(ab)>8?"#A8442C":"#0F6E63")+"'>"+(ab>0?"+":"")+ab.toFixed(1)+" %</td></tr>";
+  }
+  $("bt").innerHTML=t;
+})();
+
+for(var i=0;i<els.length;i++) els[i].addEventListener("input",render);
+render();
+
+fetch("forecast.json").then(function(res){return res.ok?res.json():null;}).then(function(d){
+  if(!d||!d.stand) return;
+  $("stand").textContent=" · Datenstand "+d.stand;
+  if(d.volumen_jahresrate_mio) els[0].value=Math.round(d.volumen_jahresrate_mio/1000);
+  if(d.mix_aktien_je_etf) els[2].value=d.mix_aktien_je_etf;
+  if(d.warnungen&&d.warnungen.length){
+    var w=$("ladewarn"); w.classList.remove("hide"); w.textContent=d.warnungen.join(" · ");
+  }
+  render();
+}).catch(function(){});
+</script>
+</body>
+</html>
