@@ -381,7 +381,7 @@ function render(){
 })();
 
 fitSP();
-["rate","tage","bp","mix","wiki","turbo","fix","kurs","ausMix"].forEach(function(id){
+["rate","bp","mix","wiki","turbo","fix","kurs","ausMix"].forEach(function(id){
   $(id).addEventListener("input",render);
 });
 render();
