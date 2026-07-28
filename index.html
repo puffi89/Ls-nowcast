@@ -75,18 +75,18 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 <body>
 <div class="inner">
   <p class="eyebrow">Lang &amp; Schwarz · Ertragsmodell nach dem Orderflow-Bruch<span id="stand"></span></p>
-  <h1>Vom Tagesumsatz<br>zur Dividende.</h1>
-  <p class="lede">Das Modell rechnet ein Handelsvolumen durch beide Gesellschaften des Konzerns:
-    erst die TradeCenter&nbsp;KG als Market Maker, dann die AG als Emittentin und
-    Dividendenzahlerin. Alle Kostenfunktionen sind auf die veröffentlichten Abschlüsse
-    2022–2025 kalibriert.</p>
+  <h1>Nowcast<br><span id="qTitel">für das laufende Quartal</span>.</h1>
+  <p class="lede">Was bereits gehandelt wurde, steht fest. Für die restlichen Handelstage
+    schreibt das Modell eine Tagesrate fort und rechnet daraus Handelsergebnis und
+    Ergebnis je Aktie. Kalibriert auf 20 Quartale gemeldeter Zahlen.</p>
+  <p class="foot mono" id="fortschritt" style="margin-top:14px"></p>
 
   <div id="ladewarn" class="warn hide"></div>
   <div class="rule"></div>
 
   <div class="panel"><div class="ctrls">
     <div class="ctrl">
-      <label class="top" for="vol"><span class="nm">Volumen je Handelstag</span><span class="vl" id="volV"></span></label>
+      <label class="top" for="vol"><span class="nm">Rate für die Resttage</span><span class="vl" id="volV"></span></label>
       <input id="vol" type="range" min="10" max="1400" step="5" value="206">
       <div class="sub" id="volS"></div>
       <div class="sub" id="fenster" style="margin-top:6px"></div>
@@ -151,46 +151,20 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
   <div id="kgWarn" class="warn hide"></div>
 
   <div class="rule"></div>
-  <h2>Dividende und Ergebnis über den Volumenanteil</h2>
+  <h2>Ergebnis je Aktie über die Tagesrate</h2>
   <svg id="chart" viewBox="0 0 720 260" style="width:100%;height:auto" role="img"
        aria-label="Verlauf von Dividende und Ergebnis je Aktie über den Volumenanteil"></svg>
-  <p class="foot">Schwarz: Ergebnis je Aktie. Gold: Dividende. Die gestrichelte Linie
-    markiert die aktuelle Einstellung.</p>
+  <p class="foot">Schwarz: Quartals-EPS. Gold: auf vier Quartale hochgerechnet.
+    Die gestrichelte Linie markiert die eingestellte Rate.</p>
 
   <div class="rule"></div>
-  <h2>Backtest gegen die Abschlüsse</h2>
-  <table><thead><tr><th>Jahr</th><th>EGT Modell</th><th>EGT Ist</th>
+  <h2>Backtest gegen die Quartalsmeldungen</h2>
+  <table><thead><tr><th>Quartal</th><th>EGT Modell</th><th>EGT Ist</th>
     <th>EPS Modell</th><th>EPS Ist</th><th>Abw.</th></tr></thead>
     <tbody id="bt"></tbody></table>
   <p class="foot" style="margin-top:12px">Gefüttert mit den tatsächlichen Segmentergebnissen,
     damit der Test die Kosten- und Steuerbrücke prüft und nicht die Volumenannahme.
     Beträge in Mio €.</p>
-
-  <div class="rule"></div>
-  <h2>Zertifikategeschäft kalibrieren</h2>
-  <div class="panel">
-    <p class="foot" id="spfit" style="margin:0 0 16px;font-size:13px;color:var(--ink)"></p>
-    <div class="ctrls" style="gap:14px">
-      <div class="ctrl"><label class="top" for="nq"><span class="nm">Quartal</span></label>
-        <input id="nq" type="text" placeholder="2026Q3" class="mono"
-          style="width:100%;padding:7px;border:1px solid var(--line);background:var(--paper);font-size:13px"></div>
-      <div class="ctrl"><label class="top" for="nw"><span class="nm">wikifolio Ø/Tag</span></label>
-        <input id="nw" type="number" step="0.01" placeholder="3,02" class="mono"
-          style="width:100%;padding:7px;border:1px solid var(--line);background:var(--paper);font-size:13px"></div>
-      <div class="ctrl"><label class="top" for="nt"><span class="nm">Turbo Ø/Tag</span></label>
-        <input id="nt" type="number" step="0.01" placeholder="4,59" class="mono"
-          style="width:100%;padding:7px;border:1px solid var(--line);background:var(--paper);font-size:13px"></div>
-      <div class="ctrl"><label class="top" for="ne"><span class="nm">gemeldetes Ergebnis</span></label>
-        <input id="ne" type="number" step="0.1" placeholder="Mio €" class="mono"
-          style="width:100%;padding:7px;border:1px solid var(--line);background:var(--paper);font-size:13px"></div>
-    </div>
-    <button id="addq" class="fbtn" style="margin-top:14px;padding:7px 14px;font-size:12px">Quartal ergänzen und neu schätzen</button>
-    <div id="addout" class="sub" style="margin-top:12px"></div>
-  </div>
-  <p class="foot" style="margin-top:12px">Die Ergänzung gilt nur für diesen Besuch.
-    Damit sie dauerhaft wirkt, muss die ausgegebene Zeile in den Quelltext, in das
-    Feld <span class="mono">SPDATEN</span>. So bleibt die Kalibrierung versioniert
-    und nachvollziehbar.</p>
 
   <details style="margin-top:22px"><summary>Kalibrierung anzeigen</summary>
     <div class="panel" style="margin-top:12px"><table><tbody>
@@ -218,34 +192,40 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
 <script>
 "use strict";
-var HT=255, BR={achse:778,steig:1.0383};   // Sheet-Tagesrate -> gemeldetes Jahresvolumen
-function jahresvol(rate){return (BR.achse+BR.steig*rate*HT)/1000;}   // in Mrd
-var CAL={kgFix:5.86,kgVar:.324,agFix:8.14,agVar:.416,agTax:.39,agOther:.58,
-  konzOff:-3.96,konzVar:.1683,konzTax:.687,shares:9.438,vol2025:331.69};
+var BR={achse:778,steig:1.0383};   // Sheet-Volumen -> gemeldetes Volumen
+var QS={quartal:"—",bisher:0,rest:63,volBisher:0,rateBisher:0};   // vom Loader
+
+function quartalsvolumen(rate){          // Mio EUR, gemeldete Basis
+  return BR.achse/4 + BR.steig*(QS.volBisher + rate*QS.rest);
+}
+/* Quartalsbruecke, direkt auf 20 Quartalen geschaetzt:
+   EGT = 0,819 x TC-Handelsergebnis + 0,989 x SP-Ergebnis - 5,55 Mio
+   R2 = 0,985, Reststreuung 1,55 Mio = 0,11 EUR je Aktie. */
+var QB={tc:.819,sp:.989,fix:-5.55,steuer:.6887,shares:9.438};
+var CAL={kgFix:5.86,kgVar:.324,shares:9.438,vol2025:331.69};
 var MIX={exp:1.575,ref:3.677,unten:2.98,oben:6.34};
-var IST=[{j:2022,tc:19.5,ag:24.718,egt:17.2,eps:1.27},{j:2023,tc:19.3,ag:23.059,egt:15.3,eps:1.08},
-  {j:2024,tc:78.4,ag:30.934,egt:71.3,eps:5.19},{j:2025,tc:90.5,ag:55.268,egt:100.4,eps:7.32}];
+var IST=[{j:"2024Q3",tc:13.9,ag:6.9,egt:12.8,eps:0.93},{j:"2024Q4",tc:31.2,ag:7.8,egt:29.3,eps:2.14},
+  {j:"2025Q1",tc:28.0,ag:11.0,egt:26.0,eps:1.87},{j:"2025Q2",tc:16.4,ag:8.6,egt:13.7,eps:1.00},
+  {j:"2025Q3",tc:19.8,ag:13.4,egt:24.0,eps:1.74},{j:"2025Q4",tc:26.3,ag:21.9,egt:36.7,eps:2.69}];
 
 function num(n,d){return n.toLocaleString("de-DE",{minimumFractionDigits:d,maximumFractionDigits:d});}
 function faktor(mix){
   var roh=Math.max(MIX.unten,Math.min(MIX.oben,mix));
   return {f:Math.pow(roh/MIX.ref,MIX.exp),klemm:mix<MIX.unten||mix>MIX.oben};
 }
-function rechne(volMrd,bp,sp,pay){
-  var tcHE=volMrd*bp/10;
-  var kgErg=tcHE-(CAL.kgFix+CAL.kgVar*tcHE);
-  var agOp=sp-(CAL.agFix+CAL.agVar*sp);
-  var agJU=(agOp+kgErg)*(1-CAL.agTax)-CAL.agOther;
+function rechne(rate,bp,sp){
+  var vol=quartalsvolumen(rate);
+  var tcHE=vol*bp/1e4;
+  var kgErg=tcHE-(CAL.kgFix/4+CAL.kgVar*tcHE);
   var konzHE=tcHE+sp;
-  var egt=agOp+kgErg+CAL.konzOff+CAL.konzVar*konzHE;
-  var ueb=egt*CAL.konzTax;
-  return {tcHE:tcHE,kgErg:kgErg,agJU:agJU,konzHE:konzHE,egt:egt,ueb:ueb,
-    eps:ueb/CAL.shares, divS:Math.max(0,agJU)*pay, divA:Math.max(0,agJU)*pay/CAL.shares};
+  var egt=QB.tc*tcHE+QB.sp*sp+QB.fix;
+  var ueb=egt*QB.steuer;
+  return {vol:vol,tcHE:tcHE,sp:sp,kgErg:kgErg,konzHE:konzHE,egt:egt,ueb:ueb,
+          eps:ueb/QB.shares};
 }
-function bruecke(tc,ag){
-  var kg=tc-(CAL.kgFix+CAL.kgVar*tc), op=ag-(CAL.agFix+CAL.agVar*ag);
-  var e=op+kg+CAL.konzOff+CAL.konzVar*(tc+ag);
-  return {egt:e,eps:e*CAL.konzTax/CAL.shares};
+function bruecke(tc,sp){
+  var e=QB.tc*tc+QB.sp*sp+QB.fix;
+  return {egt:e,eps:e*QB.steuer/QB.shares};
 }
 
 /* ---------------------------------------------------------------
@@ -335,8 +315,8 @@ function fitSP(){
 
 /* Tagesdurchschnitte -> Jahresergebnis. Der Fit steht je Quartal,
    also mal vier. */
-function spErgebnis(wiki,turbo){
-  return (SPFIT.a*wiki+SPFIT.b*turbo+SPFIT.c)*4;
+function spQuartal(wiki,turbo){
+  return SPFIT.a*wiki+SPFIT.b*turbo+SPFIT.c;
 }
 
 function zeigeFit(){
@@ -351,15 +331,16 @@ var $=function(id){return document.getElementById(id);};
 var els=["vol","bp","mix","wiki","turbo","pay","kurs","ausMix"].map($);
 var stdFehler=null;
 
-function chart(bp,sp,pay,anteil){
+function chart(bp,sp,rate){
   var W=720,H=260,L=46,R=10,T=8,B=34,pts=[],max=0;
-  for(var a=0;a<=60;a+=2){
-    var x=rechne(CAL.vol2025*a/100,bp,sp,pay);
-    pts.push({a:a,d:x.divA,e:x.eps});
-    max=Math.max(max,x.eps,x.divA);
+  var rmax=Math.max(600,rate*2);
+  for(var a=0;a<=rmax;a+=rmax/30){
+    var x=rechne(a,bp,sp);
+    pts.push({a:a,d:x.eps*4,e:x.eps});
+    max=Math.max(max,x.eps*4);
   }
   max=Math.max(max,1)*1.1;
-  var px=function(a){return L+(a/60)*(W-L-R);};
+  var px=function(a){return L+(a/rmax)*(W-L-R);};
   var py=function(v){return H-B-(v/max)*(H-T-B);};
   var s='',i;
   for(i=0;i<=4;i++){
@@ -368,45 +349,44 @@ function chart(bp,sp,pay,anteil){
     s+='<text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#6E7570" font-family="IBM Plex Mono">'+num(v,1)+' €</text>';
   }
   for(i=0;i<=6;i++){
-    var a2=i*10;
-    s+='<text x="'+px(a2)+'" y="'+(H-14)+'" text-anchor="middle" font-size="11" fill="#6E7570" font-family="IBM Plex Mono">'+a2+'</text>';
+    var a2=rmax*i/6;
+    s+='<text x="'+px(a2)+'" y="'+(H-14)+'" text-anchor="middle" font-size="11" fill="#6E7570" font-family="IBM Plex Mono">'+num(a2,0)+'</text>';
   }
-  s+='<text x="'+((L+W-R)/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="11" fill="#6E7570">% des Volumens von 2025</text>';
+  s+='<text x="'+((L+W-R)/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="11" fill="#6E7570">Mio € je Handelstag</text>';
   var path=function(key,col,w){
     var d='';
     for(var k=0;k<pts.length;k++) d+=(k?'L':'M')+px(pts[k].a)+' '+py(pts[k][key]);
     return '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="'+w+'"/>';
   };
-  var ax=Math.min(60,Math.max(0,anteil*100));
+  var ax=Math.min(rmax,Math.max(0,rate));
   s+='<line x1="'+px(ax)+'" y1="'+T+'" x2="'+px(ax)+'" y2="'+(H-B)+'" stroke="#A8442C" stroke-dasharray="3 3"/>';
   s+=path('e','#14181C',2)+path('d','#B57F00',2.5);
   $("chart").innerHTML=s;
 }
 
 function render(){
-  var rate=+els[0].value, vol=jahresvol(rate), bpRef=+els[1].value, mix=+els[2].value,
+  var rate=+els[0].value, bpRef=+els[1].value, mix=+els[2].value,
       wiki=+els[3].value, turbo=+els[4].value,
       pay=+els[5].value/100, kurs=+els[6].value, auto=els[7].checked;
-  var sp=spErgebnis(wiki,turbo);
+  var sp=spQuartal(wiki,turbo);
   var mf=faktor(mix), bp=auto?bpRef*mf.f:bpRef;
-  var r=rechne(vol,bp,sp,pay), anteil=vol/CAL.vol2025;
+  var r=rechne(rate,bp,sp);
 
   $("volV").textContent=num(rate,0)+" Mio €";
-  $("volS").textContent="LS-Exchange + Tradecenter · Jahresrate "+num(vol,1)
-    +" Mrd = "+(anteil*100).toFixed(0)+" % von 2025";
+  $("volS").textContent="Quartalsvolumen "+num(r.vol/1000,1)+" Mrd · bisher "
+    +num(QS.volBisher/1000,1)+" Mrd in "+QS.bisher+" Tagen";
   $("bpV").textContent=num(bpRef,1)+" bp";
   $("mixV").textContent=num(mix,2);
   $("mixS").textContent="Marge daraus ableiten → "+num(bp,2)+" bp";
   $("wikiV").textContent=num(wiki,2)+" Mio €";
   $("turboV").textContent=num(turbo,2)+" Mio €";
-  $("spS").textContent="ergibt "+num(sp,1)+" Mio € Zertifikateergebnis im Jahr";
+  $("spS").textContent="ergibt "+num(sp,1)+" Mio € im Quartal";
   $("payV").textContent=(pay*100).toFixed(0)+" %";
   $("kursV").textContent=num(kurs,2)+" €";
 
   var bands=[["Ergebnis aus der Handelstätigkeit",r.konzHE,"#14181C"],
              ["Ergebnis der gewöhnlichen Geschäftstätigkeit",r.egt,"#14181C"],
-             ["Konzernüberschuss vor Sondereffekten",r.ueb,"#0F6E63"],
-             ["Ausschüttungssumme an Aktionäre",r.divS,"#B57F00"]];
+             ["Konzernüberschuss vor Sondereffekten",r.ueb,"#0F6E63"]];
   var maxB=Math.max(r.konzHE,1),out="";
   for(var i=0;i<bands.length;i++){
     var w=Math.max(6,Math.max(bands[i][1],0)/maxB*100);
@@ -418,18 +398,15 @@ function render(){
   }
   $("cascade").innerHTML=out;
 
-  $("kDiv").textContent=num(r.divA,2)+" €";
-  $("kDivN").textContent=(r.divA/kurs*100).toFixed(1)+" % auf "+num(kurs,2)+" €";
   $("kEps").textContent=num(r.eps,2)+" €";
+  $("kTc").textContent=num(r.tcHE,1);
+  $("kTcN").textContent="Volumen "+num(r.vol/1000,1)+" Mrd × "+num(bp,2)+" bp";
+  $("kSp").textContent=num(sp,1);
+  $("kJahr").textContent=num(r.eps*4,2)+" €";
   if(stdFehler){
-    var lo=rechne(jahresvol(Math.max(0,rate-stdFehler)),bp,sp,pay).eps,
-        hi=rechne(jahresvol(rate+stdFehler),bp,sp,pay).eps;
-    $("kEpsN").textContent="Volumenband "+num(lo,2)+"–"+num(hi,2)+" € · KGV "+(r.eps>0?(kurs/r.eps).toFixed(1):"—");
-  } else $("kEpsN").textContent="vor Sondereffekten · KGV "+(r.eps>0?(kurs/r.eps).toFixed(1):"—");
-  $("kKg").textContent=num(r.kgErg,1);
-  $("kKg").style.color=r.kgErg<0?"#A8442C":"";
-  $("kKgN").textContent="Handelsergebnis "+num(r.tcHE,1)+" − Kosten "+num(r.tcHE-r.kgErg,1);
-  $("kAg").textContent=num(r.agJU,1);
+    var lo=rechne(Math.max(0,rate-stdFehler),bp,sp).eps, hi=rechne(rate+stdFehler,bp,sp).eps;
+    $("kEpsN").textContent="Band "+num(lo,2)+"–"+num(hi,2)+" € · KGV "+(r.eps*4>0?(kurs/(r.eps*4)).toFixed(1):"—");
+  } else $("kEpsN").textContent="vor Sondereffekten";
 
   var mw=$("mixWarn");
   if(auto&&mf.klemm){
@@ -443,15 +420,15 @@ function render(){
 
   var kw=$("kgWarn");
   if(r.kgErg<0){
-    var beHE=CAL.kgFix/(1-CAL.kgVar);
+    var beHE=CAL.kgFix/4/(1-CAL.kgVar);
     kw.classList.remove("hide");
     kw.textContent="Die KG arbeitet in diesem Szenario mit Verlust. Ihre Ausschüttung an die AG "
       +"entfällt, und die Dividende trägt allein das Zertifikategeschäft. Der Umschlagpunkt liegt "
-      +"bei "+num(beHE,1)+" Mio € Handelsergebnis, also rund "+num(beHE*10/bp,0)+" Mrd € Volumen bei "
+      +"bei "+num(beHE,1)+" Mio € Handelsergebnis im Quartal, also rund "+num(beHE*1e4/bp/1000,1)+" Mrd € Volumen bei "
       +num(bp,1)+" bp.";
   } else kw.classList.add("hide");
 
-  chart(bp,sp,pay,anteil);
+  chart(bp,sp,rate);
 }
 
 (function(){
@@ -489,23 +466,20 @@ function fensterKnoepfe(f){
 }
 render();
 
-$("addq").addEventListener("click",function(){
-  var q=$("nq").value.trim(), w=parseFloat($("nw").value),
-      t=parseFloat($("nt").value), e=parseFloat($("ne").value);
-  var out=$("addout");
-  if(!q||!(w>0)||!(t>0)||!(e>0)){ out.textContent="Alle vier Felder ausfüllen, Werte größer null."; return; }
-  var alt={a:SPFIT.a,b:SPFIT.b,n:SPFIT.n};
-  SPDATEN.push([q,w,t,e]); fitSP(); zeigeFit(); render();
-  out.innerHTML="Zeile für den Quelltext:<br><span class='mono' style='color:var(--teal)'>"
-    +'&nbsp;&nbsp;["'+q+'", '+w.toFixed(2)+', '+t.toFixed(2)+', '+e.toFixed(1)+'],</span><br>'
-    +"wikifolio "+num(alt.a,3)+" → "+num(SPFIT.a,3)+" · Turbo "+num(alt.b,3)+" → "+num(SPFIT.b,3)
-    +" · jetzt "+SPFIT.n+" Quartale";
-});
-
 fetch("forecast.json").then(function(res){return res.ok?res.json():null;}).then(function(d){
   if(!d||!d.stand) return;
   $("stand").textContent=" · Datenstand "+d.stand;
-  if(d.tagesrate_mio) els[0].value=Math.round(d.tagesrate_mio);
+  if(d.quartal){
+    QS={quartal:d.quartal.quartal,bisher:d.quartal.handelstage_bisher,
+        rest:d.quartal.handelstage_rest,volBisher:d.quartal.volumen_bisher_mio,
+        rateBisher:d.quartal.rate_bisher_mio};
+    $("qTitel").textContent=QS.quartal;
+    $("fortschritt").textContent=QS.bisher+" von "+(QS.bisher+QS.rest)
+      +" Handelstagen abgeschlossen · "+Math.round(QS.bisher/(QS.bisher+QS.rest)*100)+" %";
+    els[0].value=Math.round(QS.rateBisher);
+    if(d.quartal.wikifolio_je_tag) els[3].value=d.quartal.wikifolio_je_tag;
+    if(d.quartal.turbo_je_tag) els[4].value=d.quartal.turbo_je_tag;
+  }
   fensterKnoepfe(d.fenster);
   if(d.fenster&&d.fenster.standardfehler_mio) stdFehler=d.fenster.standardfehler_mio;
   if(d.mix_aktien_je_etf) els[2].value=d.mix_aktien_je_etf;

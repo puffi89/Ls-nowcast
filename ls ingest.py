@@ -31,7 +31,12 @@ MIX = dict(exponent=1.575, referenz=3.677, unten=2.98, oben=6.34)
 # Segmentergebnis; Zertifikate und Optionen fielen mit Koeffizient null heraus,
 # ihre Volumina sind zu klein. R2 = 0,73, MAPE 19 %.
 # Out-of-sample H1/2026: Modell 28,1 gegen gemeldete rund 30 Mio, also -6 %.
-SP = dict(wikifolio_bp=189.0, turbo_bp=178.0, fix_quartal=0.21, handelstage=63)
+SP = dict(wikifolio=1.107, turbo=1.227, achse=-0.04)   # je Mio/Handelstag, Ergebnis je Quartal
+
+# Quartalsbruecke, direkt auf 20 Quartalen geschaetzt:
+# EGT = 0,819 x TC-Handelsergebnis + 0,989 x SP-Ergebnis - 5,55 Mio
+# R2 = 0,985, Reststreuung 1,55 Mio = 0,11 EUR je Aktie.
+QB = dict(tc=0.819, sp=0.989, fix=-5.55, steuer=0.6887)
 
 
 def lade(quelle: str) -> pd.DataFrame:
@@ -136,6 +141,22 @@ def jahresvolumen(tagesrate: float, handelstage: int = 255) -> float:
     return BRUECKE['achse'] + BRUECKE['steigung'] * tagesrate * handelstage
 
 
+def quartalsprognose(qs: dict, bp: float, rate: float = None) -> dict:
+    """Nowcast fuer das laufende Quartal: Aufgelaufenes plus Fortschreibung."""
+    rate = qs['rate_bisher_mio'] if rate is None else rate
+    sheet_q = qs['volumen_bisher_mio'] + rate * qs['handelstage_rest']
+    gemeldet = BRUECKE['achse'] / 4 + BRUECKE['steigung'] * sheet_q
+    tc_he = gemeldet * bp / 1e4
+    sp_he = (SP['wikifolio'] * qs['wikifolio_je_tag']
+             + SP['turbo'] * qs['turbo_je_tag'] + SP['achse'])
+    egt = QB['tc'] * tc_he + QB['sp'] * sp_he + QB['fix']
+    return dict(volumen_quartal_mio=round(gemeldet, 0),
+                tc_handelsergebnis=round(tc_he, 1),
+                sp_handelsergebnis=round(sp_he, 1),
+                egt=round(egt, 1),
+                eps=round(egt * QB['steuer'] / CAL['aktien'], 2))
+
+
 def ertrag(tc_volumen_mio: float, bp: float, sp_he: float, payout: float = 0.40) -> dict:
     c = CAL
     tc_he = tc_volumen_mio * bp / 1e4
@@ -153,14 +174,24 @@ def ertrag(tc_volumen_mio: float, bp: float, sp_he: float, payout: float = 0.40)
     )
 
 
-def sp_ergebnis(df: pd.DataFrame, seit: str) -> float:
-    """Jahresrate des Handelsergebnisses aus Strukturierten Produkten (Mio EUR)."""
-    g = df[(df.datum >= seit) & df.ht]
-    if g.empty:
-        return float('nan')
-    je_tag = (g.tc_wikifolio.sum() * SP['wikifolio_bp'] / 1e4
-              + g.tc_turbo.sum() * SP['turbo_bp'] / 1e4) / len(g)
-    return (je_tag * SP['handelstage'] + SP['fix_quartal']) * 4
+def quartalsstand(df: pd.DataFrame) -> dict:
+    """Alles, was das laufende Quartal betrifft: Fortschritt und Tagesmittel."""
+    letzte = df.datum.max()
+    start = pd.Timestamp(letzte.year, ((letzte.quarter - 1) * 3) + 1, 1)
+    ende = start + pd.offsets.QuarterEnd(0)
+    g = df[(df.datum >= start) & df.ht]
+    # Restliche Werktage; Feiertage sind darin noch enthalten, deshalb der
+    # Abschlag. Der Wert ist auf der Seite ueberschreibbar.
+    rest_werktage = len(pd.bdate_range(letzte + pd.Timedelta(days=1), ende))
+    return dict(
+        quartal=f"{letzte.year}Q{letzte.quarter}",
+        handelstage_bisher=len(g),
+        handelstage_rest=max(0, rest_werktage - round(rest_werktage * 0.02)),
+        volumen_bisher_mio=round(float(g.kassa.sum()), 1),
+        rate_bisher_mio=round(float(g.kassa.mean()), 1) if len(g) else 0.0,
+        wikifolio_je_tag=round(float(g.tc_wikifolio.mean()), 2) if len(g) else 0.0,
+        turbo_je_tag=round(float(g.tc_turbo.mean()), 2) if len(g) else 0.0,
+    )
 
 
 def aktueller_mix(df: pd.DataFrame, seit: str) -> float:
@@ -177,8 +208,7 @@ def main(quelle: str, bruch: str = "2026-07-02", bp_ref: float = 5.4, sp_he: flo
     mix = aktueller_mix(df, bruch)
     faktor, geklemmt = margenfaktor(mix)
     bp = bp_ref * faktor
-    if sp_he is None:
-        sp_he = sp_ergebnis(df, bruch)
+    qs = quartalsstand(df)
     out = dict(
         stand=str(df.datum.max().date()),
         warnungen=pruefe(df) + _mixwarnung(mix, geklemmt),
@@ -190,10 +220,9 @@ def main(quelle: str, bruch: str = "2026-07-02", bp_ref: float = 5.4, sp_he: flo
         mix_aktien_je_etf=round(mix, 2),
         margenfaktor=round(faktor, 2),
         mix_ausserhalb_stuetzbereich=geklemmt,
-        annahmen=dict(referenzmarge_bp=bp_ref, abgeleitete_marge_bp=round(bp, 2),
-                      sp_handelsergebnis_mio=round(sp_he, 1),
-                      sp_aus_umsaetzen=True),
-        prognose=ertrag(vol, bp, sp_he),
+        quartal=qs,
+        annahmen=dict(referenzmarge_bp=bp_ref, abgeleitete_marge_bp=round(bp, 2)),
+        prognose=quartalsprognose(qs, bp),
         verlauf=[dict(datum=str(r.datum.date()), kassa=round(r.kassa, 1),
                       deriv=round(r.deriv, 2))
                  for r in df[df.datum >= '2026-01-01'].itertuples()],
