@@ -183,13 +183,22 @@ def quartalsstand(df: pd.DataFrame) -> dict:
     start = pd.Timestamp(letzte.year, ((letzte.quarter - 1) * 3) + 1, 1)
     ende = start + pd.offsets.QuarterEnd(0)
     g = df[(df.datum >= start) & df.ht]
-    # Restliche Werktage; Feiertage sind darin noch enthalten, deshalb der
-    # Abschlag. Der Wert ist auf der Seite ueberschreibbar.
-    rest_werktage = len(pd.bdate_range(letzte + pd.Timedelta(days=1), ende))
+    # Handelstage sind eine Kalendergroesse, kein Schaetzwert. Der Median des
+    # gleichen Quartals aus den Vorjahren trifft ihn besser als jede
+    # Feiertagsheuristik - die Daten kennen die Boersenfeiertage bereits.
+    frueher = df[df.ht & (df.datum < start)]
+    if len(frueher):
+        je_quartal = (frueher.groupby([frueher.datum.dt.year,
+                                       frueher.datum.dt.quarter]).size())
+        gleich = [v for (jahr, qn), v in je_quartal.items() if qn == letzte.quarter]
+        gesamt = int(np.median(gleich)) if gleich else 63
+    else:
+        gesamt = 63
     return dict(
         quartal=f"{letzte.year}Q{letzte.quarter}",
+        handelstage_gesamt=gesamt,
         handelstage_bisher=len(g),
-        handelstage_rest=max(0, rest_werktage - round(rest_werktage * 0.02)),
+        handelstage_rest=max(0, gesamt - len(g)),
         volumen_bisher_mio=round(float(g.kassa.sum()), 1),
         rate_bisher_mio=round(float(g.kassa.mean()), 1) if len(g) else 0.0,
         wikifolio_je_tag=round(float(g.tc_wikifolio.mean()), 2) if len(g) else 0.0,

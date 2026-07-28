@@ -91,11 +91,6 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
       <div class="sub" id="fenster"></div>
     </div>
     <div>
-      <div class="top"><label class="nm" for="tage">Handelstage im Quartal</label><span class="vl" id="tageV"></span></div>
-      <input id="tage" type="range" min="55" max="70" step="1" value="63">
-      <div class="sub">2021–2025 lagen zwischen 60 und 66</div>
-    </div>
-    <div>
       <div class="top"><label class="nm" for="bp">Referenzmarge</label><span class="vl" id="bpV"></span></div>
       <input id="bp" type="range" min="1.5" max="8" step="0.1" value="5.4">
       <div class="sub">brutto ohne PFOF · 2025 netto 2,7 bp</div>
@@ -169,6 +164,7 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
       <tr><td>Marge aus Produktmix</td><td>log(bp) = −0,960 + 1,575 × log(Aktien/ETF) · R² 0,37 · out-of-sample 41 %</td></tr>
       <tr><td>Volatilität</td><td>getestet und verworfen — r = −0,39, senkt das adjustierte R²</td></tr>
       <tr><td>Steuerquote</td><td>68,87 % Konzernüberschuss je EGT</td></tr>
+      <tr><td>Handelstage je Quartal</td><td>63 / 62 / 66 / 62 — Mediane aus acht Jahren, Spanne höchstens zwei Tage</td></tr>
       <tr><td>Aktien</td><td>9.438.000 Stück</td></tr>
     </tbody></table></div>
   </details>
@@ -192,6 +188,10 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 var QB={tc:.819,sp:.989,fix:-7.01,steuer:.6887,aktien:9.438};
 var BR={achse:194.5,steig:1.0383};          // Sheet -> gemeldetes Volumen, je Quartal
 var MIX={exp:1.575,ref:3.677,unten:2.98,oben:6.34};
+/* Handelstage je Quartal - Kalendergroesse, kein Parameter.
+   Mediane aus acht Jahren; die Spanne betraegt hoechstens zwei Tage. */
+var HTAGE={1:63,2:62,3:66,4:62};
+var tage=HTAGE[Math.floor(new Date().getMonth()/3)+1];
 
 /* Kalibriertabelle des Zertifikategeschäfts. Neue Quartale hier ergänzen:
    [Quartal, wikifolio Mio/Handelstag, Turbo Mio/Handelstag, gemeldetes Ergebnis Mio] */
@@ -305,15 +305,14 @@ function chart(tage,bp,sp,rate,fix){
 }
 
 function render(){
-  var rate=+$("rate").value, tage=+$("tage").value, bpRef=+$("bp").value,
+  var rate=+$("rate").value, bpRef=+$("bp").value,
       mix=+$("mix").value, wiki=+$("wiki").value, turbo=+$("turbo").value,
       kurs=+$("kurs").value, fix=+$("fix").value, auto=$("ausMix").checked;
   var mf=margenfaktor(mix), bp=auto?bpRef*mf.f:bpRef;
   var sp=spQuartal(wiki,turbo), r=rechne(rate,tage,bp,sp,fix);
 
   $("rateV").textContent=num(rate,0)+" Mio €";
-  $("rateS").textContent="Quartalsvolumen "+num(r.vol/1000,1)+" Mrd €";
-  $("tageV").textContent=tage;
+  $("rateS").textContent="Quartalsvolumen "+num(r.vol/1000,1)+" Mrd € bei "+tage+" Handelstagen";
   $("bpV").textContent=num(bpRef,1)+" bp";
   $("mixV").textContent=num(mix,2);
   $("mixS").textContent="Marge ableiten → "+num(bp,2)+" bp";
@@ -393,11 +392,11 @@ fetch("forecast.json").then(function(r){return r.ok?r.json():null;}).then(functi
   if(d.quartal){
     QS=d.quartal;
     $("qTitel").textContent=QS.quartal;
-    var ges=QS.handelstage_bisher+QS.handelstage_rest;
-    $("fortschritt").textContent=QS.handelstage_bisher+" von rund "+ges
+    var ges=QS.handelstage_gesamt||(QS.handelstage_bisher+QS.handelstage_rest);
+    $("fortschritt").textContent=QS.handelstage_bisher+" von "+ges
       +" Handelstagen gelaufen · Ø bisher "+num(QS.rate_bisher_mio,0)+" Mio € je Tag";
     if(QS.rate_bisher_mio) $("rate").value=Math.round(QS.rate_bisher_mio);
-    if(ges>=55&&ges<=70) $("tage").value=ges;
+    if(QS.handelstage_gesamt>=55&&QS.handelstage_gesamt<=70) tage=QS.handelstage_gesamt;
     if(QS.wikifolio_je_tag) $("wiki").value=QS.wikifolio_je_tag;
     if(QS.turbo_je_tag) $("turbo").value=QS.turbo_je_tag;
   }
