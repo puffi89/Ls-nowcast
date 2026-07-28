@@ -33,10 +33,13 @@ MIX = dict(exponent=1.575, referenz=3.677, unten=2.98, oben=6.34)
 # Out-of-sample H1/2026: Modell 28,1 gegen gemeldete rund 30 Mio, also -6 %.
 SP = dict(wikifolio=1.107, turbo=1.227, achse=-0.04)   # je Mio/Handelstag, Ergebnis je Quartal
 
-# Quartalsbruecke, direkt auf 20 Quartalen geschaetzt:
-# EGT = 0,819 x TC-Handelsergebnis + 0,989 x SP-Ergebnis - 5,55 Mio
-# R2 = 0,985, Reststreuung 1,55 Mio = 0,11 EUR je Aktie.
-QB = dict(tc=0.819, sp=0.989, fix=-5.55, steuer=0.6887)
+# Quartalsbruecke. Steigungen auf 20 Quartalen geschaetzt, der Fixblock am
+# Kostenniveau 2025 verankert: ueber den ganzen Zeitraum gemittelt waere er zu
+# niedrig, weil die Fixkosten seit 2023 stark gewachsen sind (2021: 27,4 Mio
+# Kostenkeil bei 113,5 Mio Ertrag, 2024: 37,6 bei 109,0).
+# EGT = 0,819 x TC-Handelsergebnis + 0,989 x SP-Ergebnis - 7,01 Mio
+# Gegenprobe Q1/2026: 48,0 gegen gemeldete 48,2 Mio.
+QB = dict(tc=0.819, sp=0.989, fix=-7.01, steuer=0.6887)
 
 
 def lade(quelle: str) -> pd.DataFrame:

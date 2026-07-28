@@ -118,6 +118,11 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
       <div class="sub" id="spS"></div>
     </div>
     <div>
+      <div class="top"><label class="nm" for="fix">Fixkosten je Quartal</label><span class="vl" id="fixV"></span></div>
+      <input id="fix" type="range" min="3" max="12" step="0.1" value="7.0">
+      <div class="sub">2025 verankert · 2021–2023 lagen bei 5,0</div>
+    </div>
+    <div>
       <div class="top"><label class="nm" for="kurs">Aktienkurs</label><span class="vl" id="kursV"></span></div>
       <input id="kurs" type="range" min="5" max="45" step="0.5" value="18">
       <div class="sub">nur für die Bewertungskennzahl</div>
@@ -158,7 +163,7 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
   <details style="margin-top:22px"><summary>Kalibrierung anzeigen</summary>
     <div class="panel" style="margin-top:12px"><table><tbody>
-      <tr><td>Quartalsbrücke</td><td>EGT = 0,819 × TC-Ergebnis + 0,989 × Zertifikateergebnis − 5,55 Mio · R² 0,985</td></tr>
+      <tr><td>Quartalsbrücke</td><td>EGT = 0,819 × TC-Ergebnis + 0,989 × Zertifikate − Fixblock · Steigungen aus 20 Quartalen, Fixblock am Kostenniveau 2025 verankert · Q1/2026: 48,0 gegen 48,2 Ist</td></tr>
       <tr><td>Zertifikategeschäft</td><td id="spfit"></td></tr>
       <tr><td>Volumenbrücke</td><td>gemeldet = 194,5 Mio + 1,0383 × Sheet-Volumen · R² 0,999</td></tr>
       <tr><td>Marge aus Produktmix</td><td>log(bp) = −0,960 + 1,575 × log(Aktien/ETF) · R² 0,37 · out-of-sample 41 %</td></tr>
@@ -179,10 +184,12 @@ details summary{cursor:pointer;font-size:12px;color:var(--dim);
 
 <script>
 "use strict";
-/* Quartalsbrücke, auf 20 Quartalen geschätzt.
-   EGT = 0,819 × TC-Handelsergebnis + 0,989 × Zertifikateergebnis − 5,55 Mio
-   R² 0,985 · Reststreuung 1,55 Mio = 0,11 € je Aktie */
-var QB={tc:.819,sp:.989,fix:-5.55,steuer:.6887,aktien:9.438};
+/* Quartalsbrücke. Steigungen auf 20 Quartalen geschätzt, der Fixblock am
+   Kostenniveau 2025 verankert — über den ganzen Zeitraum gemittelt wäre er
+   zu niedrig, weil die Fixkosten seit 2023 deutlich gewachsen sind.
+   EGT = 0,819 × TC-Ergebnis + 0,989 × Zertifikate − 7,01 Mio
+   Gegenprobe Q1/2026: 48,0 gegen gemeldete 48,2 Mio. */
+var QB={tc:.819,sp:.989,fix:-7.01,steuer:.6887,aktien:9.438};
 var BR={achse:194.5,steig:1.0383};          // Sheet -> gemeldetes Volumen, je Quartal
 var MIX={exp:1.575,ref:3.677,unten:2.98,oben:6.34};
 
@@ -260,19 +267,19 @@ function margenfaktor(mix){
   var roh=Math.max(MIX.unten,Math.min(MIX.oben,mix));
   return {f:Math.pow(roh/MIX.ref,MIX.exp),klemm:mix<MIX.unten||mix>MIX.oben};
 }
-function rechne(rate,tage,bp,sp){
+function rechne(rate,tage,bp,sp,fix){
   var vol=BR.achse+BR.steig*rate*tage;
   var tcHE=vol*bp/1e4;
-  var egt=QB.tc*tcHE+QB.sp*sp+QB.fix;
+  var egt=QB.tc*tcHE+QB.sp*sp-(fix===undefined?-QB.fix:fix);
   return {vol:vol,tcHE:tcHE,sp:sp,he:tcHE+sp,egt:egt,
           ueb:egt*QB.steuer,eps:egt*QB.steuer/QB.aktien};
 }
 
-function chart(tage,bp,sp,rate){
+function chart(tage,bp,sp,rate,fix){
   var W=720,H=250,L=48,R=10,T=8,B=32,pts=[],max=0,min=0,i;
   var rmax=Math.max(600,Math.ceil(rate*2/100)*100);
   for(i=0;i<=40;i++){
-    var a=rmax*i/40, e=rechne(a,tage,bp,sp).eps;
+    var a=rmax*i/40, e=rechne(a,tage,bp,sp,fix).eps;
     pts.push({a:a,e:e}); max=Math.max(max,e); min=Math.min(min,e);
   }
   max=max*1.1; min=Math.min(0,min*1.1);
@@ -300,9 +307,9 @@ function chart(tage,bp,sp,rate){
 function render(){
   var rate=+$("rate").value, tage=+$("tage").value, bpRef=+$("bp").value,
       mix=+$("mix").value, wiki=+$("wiki").value, turbo=+$("turbo").value,
-      kurs=+$("kurs").value, auto=$("ausMix").checked;
+      kurs=+$("kurs").value, fix=+$("fix").value, auto=$("ausMix").checked;
   var mf=margenfaktor(mix), bp=auto?bpRef*mf.f:bpRef;
-  var sp=spQuartal(wiki,turbo), r=rechne(rate,tage,bp,sp);
+  var sp=spQuartal(wiki,turbo), r=rechne(rate,tage,bp,sp,fix);
 
   $("rateV").textContent=num(rate,0)+" Mio €";
   $("rateS").textContent="Quartalsvolumen "+num(r.vol/1000,1)+" Mrd €";
@@ -313,6 +320,7 @@ function render(){
   $("wikiV").textContent=num(wiki,2)+" Mio €";
   $("turboV").textContent=num(turbo,2)+" Mio €";
   $("spS").textContent="ergibt "+num(sp,1)+" Mio € im Quartal";
+  $("fixV").textContent=num(fix,1)+" Mio €";
   $("kursV").textContent=num(kurs,2)+" €";
 
   var bands=[["Ergebnis aus der Handelstätigkeit",r.he,"#14181C"],
@@ -331,8 +339,8 @@ function render(){
 
   $("kEps").textContent=num(r.eps,2)+" €";
   if(stdFehler){
-    var lo=rechne(Math.max(0,rate-stdFehler),tage,bp,sp).eps,
-        hi=rechne(rate+stdFehler,tage,bp,sp).eps;
+    var lo=rechne(Math.max(0,rate-stdFehler),tage,bp,sp,fix).eps,
+        hi=rechne(rate+stdFehler,tage,bp,sp,fix).eps;
     $("kEpsN").textContent="Band "+num(lo,2)+" bis "+num(hi,2)+" €";
   } else $("kEpsN").textContent="im Quartal, vor Sondereffekten";
   $("kTc").textContent=num(r.tcHE,1);
@@ -351,13 +359,13 @@ function render(){
       +"Marge als Hinweis, nicht als Schätzung.";
   } else mw.classList.add("hide");
 
-  chart(tage,bp,sp,rate);
+  chart(tage,bp,sp,rate,fix);
 }
 
 (function backtest(){
   var t="",i,sr=0,n=0;
   for(i=0;i<IST.length;i++){
-    var egt=QB.tc*IST[i][1]+QB.sp*IST[i][2]+QB.fix, ist=IST[i][3];
+    var egt=QB.tc*IST[i][1]+QB.sp*IST[i][2]+QB.fix, ist=IST[i][3];  // Backtest mit verankertem Fixblock
     var ab=Math.abs(ist)>0.5?(egt-ist)/ist*100:null;
     sr+=(egt-ist)*(egt-ist); n++;
     t+="<tr><td>"+IST[i][0]+"</td><td>"+num(IST[i][1],1)+"</td><td>"+num(IST[i][2],1)
@@ -374,7 +382,7 @@ function render(){
 })();
 
 fitSP();
-["rate","tage","bp","mix","wiki","turbo","kurs","ausMix"].forEach(function(id){
+["rate","tage","bp","mix","wiki","turbo","fix","kurs","ausMix"].forEach(function(id){
   $(id).addEventListener("input",render);
 });
 render();
